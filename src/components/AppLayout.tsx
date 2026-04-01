@@ -1,0 +1,234 @@
+// ============================================================
+// FILE: src/components/AppLayout.tsx
+//
+// CHANGE: Removed IonHeader entirely — no top toolbar.
+//         Content now fills from top of screen to tab bar.
+// ============================================================
+
+import React, { useState } from 'react';
+import {
+  IonPage, IonContent,
+  IonFooter, IonTabBar, IonTabButton, IonIcon, IonLabel,
+  IonAlert,
+} from '@ionic/react';
+import {
+  homeOutline, cartOutline, ellipsisHorizontalOutline,
+  timeOutline, settingsOutline, logOutOutline, closeOutline,
+} from 'ionicons/icons';
+import { useHistory, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/useAuth';
+import { W } from '../theme/warmEarth';
+
+interface AppLayoutProps {
+  title:      string;
+  children:   React.ReactNode;
+  scrollY?:   boolean;
+  onRefresh?: (complete: () => void) => Promise<void>;
+}
+
+// ── Small icon box ─────────────────────────────────────────────
+function NavIconBox({
+  icon, active = false, danger = false,
+}: { icon: string; active?: boolean; danger?: boolean }) {
+  const bg    = danger ? W.redPale  : active ? W.greenPale : 'rgba(28,43,26,0.06)';
+  const color = danger ? W.red      : active ? W.green     : W.textMuted;
+  return (
+    <span style={{
+      width: 34, height: 34, borderRadius: 10,
+      backgroundColor: bg,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexShrink: 0,
+    }}>
+      <IonIcon icon={icon} style={{ fontSize: 18, color }} />
+    </span>
+  );
+}
+
+export default function AppLayout({
+  title, children, scrollY = true, onRefresh,
+}: AppLayoutProps) {
+  const { user, logout } = useAuth();
+  const history          = useHistory();
+  const location         = useLocation();
+
+  const [showMore,   setShowMore]   = useState(false);
+  const [showLogout, setShowLogout] = useState(false);
+
+  const isActive = (path: string) => location.pathname === path;
+  const initial  = user?.name?.charAt(0)?.toUpperCase() ?? '?';
+
+  const handleLogout = async () => {
+    await logout();
+    history.replace('/login');
+  };
+
+  const closeMore = () => setShowMore(false);
+
+  return (
+    <IonPage>
+
+      {/* ── Page content (no header) ─────────────────────────── */}
+      <IonContent scrollY={scrollY} style={{ '--background': W.pageBg } as any}>
+        {onRefresh && (
+          <div slot="fixed" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+            {/* IonRefresher needs to be a direct child of IonContent — handled in each page */}
+          </div>
+        )}
+        <div style={{ padding: '16px 16px 80px' }}>
+          {children}
+        </div>
+      </IonContent>
+
+      {/* ── Bottom tab bar ──────────────────────────────────── */}
+      <IonFooter>
+        <IonTabBar style={{
+          '--background':     W.cardBg,
+          '--border':         `1px solid ${W.border}`,
+          '--color':          W.textMuted,
+          '--color-selected': W.green,
+          height: 60,
+        } as any}>
+
+          <IonTabButton
+            tab="dashboard"
+            selected={isActive('/dashboard')}
+            onClick={() => history.push('/dashboard')}
+          >
+            <IonIcon icon={homeOutline} />
+            <IonLabel style={{ fontSize: 10, fontWeight: 700 }}>Dashboard</IonLabel>
+          </IonTabButton>
+
+          <IonTabButton
+            tab="pos"
+            selected={isActive('/pos')}
+            onClick={() => history.push('/pos')}
+          >
+            <IonIcon icon={cartOutline} />
+            <IonLabel style={{ fontSize: 10, fontWeight: 700 }}>Sales</IonLabel>
+          </IonTabButton>
+
+          <IonTabButton
+            tab="more"
+            selected={showMore}
+            onClick={() => setShowMore(prev => !prev)}
+          >
+            <IonIcon icon={showMore ? closeOutline : ellipsisHorizontalOutline} />
+            <IonLabel style={{ fontSize: 10, fontWeight: 700 }}>
+              {showMore ? 'Close' : 'More'}
+            </IonLabel>
+          </IonTabButton>
+
+        </IonTabBar>
+      </IonFooter>
+
+      {/* ── "More" bottom sheet ─────────────────────────────── */}
+      {showMore && (
+        <>
+          <div
+            onClick={closeMore}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 900,
+              backgroundColor: 'rgba(28,43,26,0.40)',
+            }}
+          />
+          <div style={{
+            position: 'fixed', left: 10, right: 10, bottom: 68, zIndex: 901,
+            backgroundColor: '#EAE3D2',
+            borderRadius: 20,
+            boxShadow: '0 -4px 32px rgba(28,43,26,0.18)',
+            border: `1px solid ${W.border}`,
+            animation: 'sheetUp 0.22s ease-out',
+          }}>
+            {/* Header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '12px 16px 14px',
+              borderBottom: `1px solid ${W.border}`,
+            }}>
+              <div style={{
+                width: 42, height: 42, borderRadius: '50%',
+                background: 'linear-gradient(135deg, #3E8A2A, #2D6A1F)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#fff', fontWeight: 800, fontSize: 17, flexShrink: 0,
+              }}>
+                {initial}
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 800, color: W.text }}>
+                  {user?.name}
+                </p>
+                <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: W.textMuted }}>
+                  Staff Account
+                </p>
+              </div>
+            </div>
+
+            {/* Items */}
+            <div style={{ padding: '8px 10px 12px' }}>
+              <button
+                onClick={() => { closeMore(); history.push('/transactions'); }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '11px 10px', borderRadius: 12,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: W.text, fontSize: 14, fontWeight: 500, textAlign: 'left',
+                }}
+              >
+                <NavIconBox icon={timeOutline} active={isActive('/transactions')} />
+                My Transactions
+              </button>
+
+              <button
+                onClick={() => { closeMore(); history.push('/profile'); }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '11px 10px', borderRadius: 12,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: W.text, fontSize: 14, fontWeight: 500, textAlign: 'left',
+                }}
+              >
+                <NavIconBox icon={settingsOutline} />
+                Profile Settings
+              </button>
+
+              <div style={{ borderTop: `1px solid ${W.border}`, margin: '4px 0' }} />
+
+              <button
+                onClick={() => { closeMore(); setTimeout(() => setShowLogout(true), 250); }}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '11px 10px', borderRadius: 12,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: W.red, fontSize: 14, fontWeight: 700, textAlign: 'left',
+                }}
+              >
+                <NavIconBox icon={logOutOutline} danger />
+                Sign Out
+              </button>
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes sheetUp {
+              from { transform: translateY(100%); opacity: 0; }
+              to   { transform: translateY(0);    opacity: 1; }
+            }
+          `}</style>
+        </>
+      )}
+
+      {/* ── Logout confirmation ──────────────────────────────── */}
+      <IonAlert
+        isOpen={showLogout}
+        onDidDismiss={() => setShowLogout(false)}
+        header="Sign out of OCMPC?"
+        message="You will be redirected to the login page."
+        buttons={[
+          { text: 'Cancel', role: 'cancel' },
+          { text: 'Yes, Sign Out', role: 'destructive', handler: handleLogout },
+        ]}
+      />
+
+    </IonPage>
+  );
+}
