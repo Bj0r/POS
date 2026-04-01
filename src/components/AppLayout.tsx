@@ -9,7 +9,6 @@ import React, { useState } from 'react';
 import {
   IonPage, IonContent,
   IonFooter, IonTabBar, IonTabButton, IonIcon, IonLabel,
-  IonAlert,
 } from '@ionic/react';
 import {
   homeOutline, cartOutline, ellipsisHorizontalOutline,
@@ -217,17 +216,98 @@ export default function AppLayout({
         </>
       )}
 
-      {/* ── Logout confirmation ──────────────────────────────── */}
-      <IonAlert
-        isOpen={showLogout}
-        onDidDismiss={() => setShowLogout(false)}
-        header="Sign out of OCMPC?"
-        message="You will be redirected to the login page."
-        buttons={[
-          { text: 'Cancel', role: 'cancel' },
-          { text: 'Yes, Sign Out', role: 'destructive', handler: handleLogout },
-        ]}
-      />
+      {/* ── Logout confirmation modal ────────────────────────── */}
+      {showLogout && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setShowLogout(false)}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 1000,
+              backgroundColor: 'rgba(28,43,26,0.45)',
+            }}
+          />
+
+          {/* Modal card */}
+          <div style={{
+            position: 'fixed', zIndex: 1001,
+            left: '50%', top: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 'min(92vw, 340px)',
+            backgroundColor: W.cardBg,
+            borderRadius: 20,
+            boxShadow: '0 8px 40px rgba(28,43,26,0.22)',
+            border: `1px solid ${W.border}`,
+            padding: '28px 24px 20px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center',
+            animation: 'fadeScaleIn 0.18s ease-out',
+          }}>
+
+            {/* Icon badge */}
+            <div style={{
+              width: 64, height: 64, borderRadius: 18,
+              backgroundColor: W.redPale,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: 16,
+            }}>
+              <IonIcon icon={logOutOutline} style={{ fontSize: 30, color: W.red }} />
+            </div>
+
+            {/* Title */}
+            <p style={{
+              margin: '0 0 8px', fontSize: 17, fontWeight: 800,
+              color: W.text, textAlign: 'center',
+            }}>
+              Sign out of OCMPC?
+            </p>
+
+            {/* Message */}
+            <p style={{
+              margin: '0 0 24px', fontSize: 13,
+              color: W.textMuted, textAlign: 'center', lineHeight: 1.5,
+            }}>
+              You will be redirected to the login page.
+            </p>
+
+            {/* Buttons */}
+            <div style={{ display: 'flex', gap: 10, width: '100%' }}>
+              <button
+                onClick={() => setShowLogout(false)}
+                style={{
+                  flex: 1, padding: '13px',
+                  borderRadius: 12,
+                  border: `1.5px solid ${W.border}`,
+                  backgroundColor: W.cardBg,
+                  color: W.text, fontWeight: 700, fontSize: 14,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                style={{
+                  flex: 1, padding: '13px',
+                  borderRadius: 12, border: 'none',
+                  background: 'linear-gradient(135deg, #C0392B, #96281B)',
+                  color: '#fff', fontWeight: 800, fontSize: 14,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(150,40,27,0.30)',
+                }}
+              >
+                Yes, Sign Out
+              </button>
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes fadeScaleIn {
+              from { transform: translate(-50%, -50%) scale(0.93); opacity: 0; }
+              to   { transform: translate(-50%, -50%) scale(1);    opacity: 1; }
+            }
+          `}</style>
+        </>
+      )}
 
     </IonPage>
   );
