@@ -210,12 +210,23 @@ export default function Register() {
             {/* ── Logo / Brand ─────────────────────────────── */}
             <div style={{ textAlign: 'center', marginBottom: 28 }}>
               <div style={{
-                width: 56, height: 56, borderRadius: 16, margin: '0 auto 12px',
-                background: `linear-gradient(135deg, ${W.greenLt}, ${W.green})`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 8px 24px rgba(45,106,31,0.28)',
+                width: 72, height: 72, borderRadius: '50%',
+                overflow: 'hidden', margin: '0 auto 14px',
+                border: `3px solid ${W.green}`,
+                outline: `3px solid ${W.greenPale ?? '#D6EDD0'}`,
+                outlineOffset: 2,
+                boxShadow: '0 8px 32px rgba(45,106,31,0.30)',
               }}>
-                <UserIcon style={{ width: 28, height: 28, color: '#fff' }} />
+                <picture>
+                  <source srcSet="/assets/COOP.webp" type="image/webp" />
+                  <img
+                    src="/assets/COOP.png"
+                    alt="OCMPC Logo"
+                    width={72}
+                    height={72}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                </picture>
               </div>
               <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: W.text }}>
                 Create account

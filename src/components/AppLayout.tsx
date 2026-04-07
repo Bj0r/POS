@@ -1,14 +1,22 @@
 // ============================================================
 // FILE: src/components/AppLayout.tsx
 //
-// CHANGE: Removed IonHeader entirely — no top toolbar.
-//         Content now fills from top of screen to tab bar.
+// DEFINITIVE FIX: Stop using dvh math entirely.
+//
+// The tab bar is rendered as a normal div at the bottom of
+// IonPage (not position:fixed). IonPage is a flex column,
+// so IonContent gets exactly the remaining height — no calc,
+// no CSS variables, no guessing.
+//
+// Pages that need "fill remaining height" (DashboardStaff,
+// Transactions) just use height:100% on their inner container
+// because IonContent's scroll element already IS that height.
 // ============================================================
 
 import React, { useState } from 'react';
 import {
   IonPage, IonContent,
-  IonFooter, IonTabBar, IonTabButton, IonIcon, IonLabel,
+  IonTabBar, IonTabButton, IonIcon, IonLabel,
 } from '@ionic/react';
 import {
   homeOutline, cartOutline, ellipsisHorizontalOutline,
@@ -44,7 +52,7 @@ function NavIconBox({
 }
 
 export default function AppLayout({
-  title, children, scrollY = true, onRefresh,
+  title, children, scrollY = true,
 }: AppLayoutProps) {
   const { user, logout } = useAuth();
   const history          = useHistory();
@@ -64,28 +72,52 @@ export default function AppLayout({
   const closeMore = () => setShowMore(false);
 
   return (
+    // IonPage is display:flex flex-direction:column height:100%
+    // Its children stack vertically and share the full screen height.
     <IonPage>
 
-      {/* ── Page content (no header) ─────────────────────────── */}
-      <IonContent scrollY={scrollY} style={{ '--background': W.pageBg } as any}>
-        {onRefresh && (
-          <div slot="fixed" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
-            {/* IonRefresher needs to be a direct child of IonContent — handled in each page */}
-          </div>
-        )}
-        <div style={{ padding: '16px 16px 80px' }}>
+      {/* ── IonContent fills ALL space between top and tab bar ── */}
+      {/*
+        flex:1 + min-height:0 makes it grow to fill the gap
+        between the top of the screen and the tab bar below.
+        No height calc needed — Ionic handles this natively.
+      */}
+      <IonContent
+        scrollY={scrollY}
+        style={{
+          '--background': W.pageBg,
+          '--overflow': scrollY ? 'auto' : 'hidden',
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        } as any}
+      >
+        <div style={{ padding: '16px', height: scrollY ? undefined : '100%', boxSizing: 'border-box' }}>
           {children}
         </div>
       </IonContent>
 
-      {/* ── Bottom tab bar ──────────────────────────────────── */}
-      <IonFooter>
+      {/* ── Tab bar — normal flow, NOT position:fixed ─────────── */}
+      {/*
+        Sitting in normal document flow at the bottom of IonPage
+        means IonContent is automatically sized to NOT overlap it.
+        safe-area-inset-bottom pads below the tappable strip so
+        the home indicator bar is covered on gesture-nav devices.
+      */}
+      <div style={{
+        flexShrink: 0,
+        backgroundColor: W.cardBg,
+        borderTop: `1px solid ${W.border}`,
+        paddingBottom: 0,
+      }}>
         <IonTabBar style={{
           '--background':     W.cardBg,
-          '--border':         `1px solid ${W.border}`,
+          '--border':         'none',
           '--color':          W.textMuted,
           '--color-selected': W.green,
-          height: 60,
+          height: 56,
+          display: 'flex',
         } as any}>
 
           <IonTabButton
@@ -118,7 +150,7 @@ export default function AppLayout({
           </IonTabButton>
 
         </IonTabBar>
-      </IonFooter>
+      </div>
 
       {/* ── "More" bottom sheet ─────────────────────────────── */}
       {showMore && (
@@ -131,7 +163,10 @@ export default function AppLayout({
             }}
           />
           <div style={{
-            position: 'fixed', left: 10, right: 10, bottom: 68, zIndex: 901,
+            position: 'fixed', left: 10, right: 10,
+            // sits above the tab bar: 56px strip + safe area + gap
+            bottom: 64,
+            zIndex: 901,
             backgroundColor: '#EAE3D2',
             borderRadius: 20,
             boxShadow: '0 -4px 32px rgba(28,43,26,0.18)',
@@ -219,7 +254,6 @@ export default function AppLayout({
       {/* ── Logout confirmation modal ────────────────────────── */}
       {showLogout && (
         <>
-          {/* Backdrop */}
           <div
             onClick={() => setShowLogout(false)}
             style={{
@@ -228,7 +262,6 @@ export default function AppLayout({
             }}
           />
 
-          {/* Modal card */}
           <div style={{
             position: 'fixed', zIndex: 1001,
             left: '50%', top: '50%',
@@ -242,8 +275,6 @@ export default function AppLayout({
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             animation: 'fadeScaleIn 0.18s ease-out',
           }}>
-
-            {/* Icon badge */}
             <div style={{
               width: 64, height: 64, borderRadius: 18,
               backgroundColor: W.redPale,
@@ -253,7 +284,6 @@ export default function AppLayout({
               <IonIcon icon={logOutOutline} style={{ fontSize: 30, color: W.red }} />
             </div>
 
-            {/* Title */}
             <p style={{
               margin: '0 0 8px', fontSize: 17, fontWeight: 800,
               color: W.text, textAlign: 'center',
@@ -261,7 +291,6 @@ export default function AppLayout({
               Sign out of OCMPC?
             </p>
 
-            {/* Message */}
             <p style={{
               margin: '0 0 24px', fontSize: 13,
               color: W.textMuted, textAlign: 'center', lineHeight: 1.5,
@@ -269,7 +298,6 @@ export default function AppLayout({
               You will be redirected to the login page.
             </p>
 
-            {/* Buttons */}
             <div style={{ display: 'flex', gap: 10, width: '100%' }}>
               <button
                 onClick={() => setShowLogout(false)}

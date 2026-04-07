@@ -1,10 +1,7 @@
 // ============================================================
 // FILE: src/pages/DashboardStaff.tsx
-//
-// CHANGES:
-//   1. Receipt button now uses IonIcon receiptOutline — same
-//      style as NavIconBox in AppLayout (no emoji).
-//   2. Added IonRefresher directly (header removed from layout).
+// REDESIGN: Compact, no-scroll layout — everything fits the screen.
+// All logic preserved; only spacing/sizing adjusted.
 // ============================================================
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -29,16 +26,21 @@ interface TxnSummary {
   created_at:   string;
 }
 
-// ── Stat icon box — same shape as NavIconBox in AppLayout ─────
+interface DashboardStats {
+  today_sales:        number;
+  today_transactions: number;
+}
+
+// ── Stat icon box — compact 28×28 ─────────────────────────────
 function StatIconBox({ icon, color, bg }: { icon: string; color: string; bg: string }) {
   return (
     <div style={{
-      width: 36, height: 36, borderRadius: 10,
+      width: 28, height: 28, borderRadius: 8,
       backgroundColor: bg,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      margin: '0 auto 8px',
+      margin: '0 auto 5px',
     }}>
-      <IonIcon icon={icon} style={{ fontSize: 20, color }} />
+      <IonIcon icon={icon} style={{ fontSize: 15, color }} />
     </div>
   );
 }
@@ -46,24 +48,21 @@ function StatIconBox({ icon, color, bg }: { icon: string; color: string; bg: str
 // ── StatusBadge ───────────────────────────────────────────────
 function StatusBadge({ status }: { status: string }) {
   const cfg: Record<string, { bg: string; color: string; label: string }> = {
-    completed: { bg: W.greenPale, color: W.greenText, label: '✓ Completed' },
-    returned:  { bg: W.amberPale, color: W.amberText, label: '↩ Returned'  },
-    voided:    { bg: W.redPale,   color: W.red,       label: '✕ Voided'    },
+    completed: { bg: W.greenPale, color: W.greenText, label: '✓ Done'     },
+    returned:  { bg: W.amberPale, color: W.amberText, label: '↩ Return'   },
+    voided:    { bg: W.redPale,   color: W.red,       label: '✕ Void'     },
   };
   const c = cfg[status] ?? { bg: W.cardBgAlt, color: W.textMuted, label: status };
   return (
     <span style={{
       display: 'inline-block', borderRadius: 20,
-      padding: '2px 8px', fontSize: 11, fontWeight: 700,
+      padding: '2px 6px', fontSize: 10, fontWeight: 700,
       backgroundColor: c.bg, color: c.color,
+      whiteSpace: 'nowrap',
     }}>
       {c.label}
     </span>
   );
-}
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 // ── Main ──────────────────────────────────────────────────────
@@ -72,18 +71,18 @@ export default function DashboardStaff() {
   const history   = useHistory();
 
   const [recent,        setRecent]        = useState<TxnSummary[]>([]);
-  const [todaySales,    setTodaySales]    = useState(0);
-  const [todayCount,    setTodayCount]    = useState(0);
+  const [stats,         setStats]         = useState<DashboardStats>({ today_sales: 0, today_transactions: 0 });
   const [loadingRecent, setLoadingRecent] = useState(true);
   const [loadingStats,  setLoadingStats]  = useState(true);
   const [errorRecent,   setErrorRecent]   = useState('');
+  const [errorStats,    setErrorStats]    = useState('');
 
   const loadRecent = useCallback(async () => {
     setLoadingRecent(true);
     setErrorRecent('');
     try {
-      const res = await api.get<{ data: TxnSummary[] }>('/transactions?per_page=10');
-      setRecent((res.data.data ?? []).slice(0, 5));
+      const res = await api.get<{ data: TxnSummary[] }>('/transactions?per_page=20');
+      setRecent((res.data.data ?? []).slice(0, 8));
     } catch {
       setErrorRecent('Could not load recent transactions.');
     } finally {
@@ -91,28 +90,26 @@ export default function DashboardStaff() {
     }
   }, []);
 
-  const loadTodayStats = useCallback(async () => {
+  const loadStats = useCallback(async () => {
     setLoadingStats(true);
+    setErrorStats('');
     try {
-      const today = todayStr();
-      const res = await api.get<{ data: TxnSummary[] }>(
-        `/transactions?per_page=50&date_from=${today}&date_to=${today}`
-      );
-      const d = (res.data.data ?? []).filter(
-        t => t.status === 'completed' || t.status === 'returned'
-      );
-      setTodaySales(d.reduce((s, t) => s + t.total_amount, 0));
-      setTodayCount(d.length);
-    } catch {
-      // non-fatal
+      const res = await api.get<DashboardStats>('/dashboard/stats');
+      setStats({
+        today_sales:        Number(res.data.today_sales        ?? 0),
+        today_transactions: Number(res.data.today_transactions ?? 0),
+      });
+    } catch (e: any) {
+      const msg = e?.response?.data?.message ?? 'Could not load today\'s stats.';
+      setErrorStats(msg);
     } finally {
       setLoadingStats(false);
     }
   }, []);
 
   const loadAll = useCallback(async () => {
-    await Promise.allSettled([loadRecent(), loadTodayStats()]);
-  }, [loadRecent, loadTodayStats]);
+    await Promise.allSettled([loadRecent(), loadStats()]);
+  }, [loadRecent, loadStats]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
@@ -122,9 +119,9 @@ export default function DashboardStaff() {
   };
 
   const card: React.CSSProperties = {
-    backgroundColor: W.cardBg, borderRadius: 16,
-    boxShadow: '0 2px 12px rgba(28,43,26,0.08)',
-    border: `1px solid ${W.border}`, overflow: 'hidden', marginBottom: 12,
+    backgroundColor: W.cardBg, borderRadius: 14,
+    boxShadow: '0 2px 10px rgba(28,43,26,0.08)',
+    border: `1px solid ${W.border}`, overflow: 'hidden',
   };
 
   return (
@@ -132,162 +129,224 @@ export default function DashboardStaff() {
       <style>{`.no-scrollbar::-webkit-scrollbar { display: none; }`}</style>
       <AppLayout title="Dashboard">
 
-        {/* Pull to refresh — must be direct child of IonContent */}
         <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
           <IonRefresherContent pullingText="Pull to refresh" refreshingText="Loading…" />
         </IonRefresher>
 
-        {/* ── Welcome banner ──────────────────────────────── */}
+        {/* ── Full-height flex column — fills viewport, no page scroll ── */}
         <div style={{
-          borderRadius: 16, padding: '16px', marginBottom: 12, color: 'white',
-          background: `linear-gradient(135deg, ${W.green}, ${W.greenLt})`,
-          boxShadow: '0 4px 20px rgba(45,106,31,0.25)',
+          display: 'flex', flexDirection: 'column',
+          // height:100% works because IonContent is already sized
+          // to the exact remaining space above the tab bar.
+          height: '100%',
+          gap: 8,
         }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            Welcome back
-          </p>
-          <h2 style={{ margin: '2px 0 4px', fontSize: 18, fontWeight: 900 }}>{user?.name ?? '…'}</h2>
-          <p style={{ margin: '0 0 12px', fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
-            {new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-          </p>
-          <button
-            onClick={() => history.push('/pos')}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              borderRadius: 10, padding: '7px 14px',
-              backgroundColor: W.cardBg, color: W.greenText,
-              border: 'none', fontWeight: 800, fontSize: 12, cursor: 'pointer',
-            }}
-          >
-            Start New Sale →
-          </button>
-        </div>
 
-        {/* ── Stat cards ──────────────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-
+          {/* ── Welcome banner ──────────────────────────────────── */}
           <div style={{
-            borderRadius: 16, padding: '14px', textAlign: 'center',
-            backgroundColor: W.greenPale, border: '1px solid #B2D9A8',
-            boxShadow: '0 4px 20px rgba(45,106,31,0.10)',
-          }}>
-            <StatIconBox icon={cashOutline} color={W.greenText} bg="rgba(255,255,255,0.55)" />
-            {loadingStats
-              ? <IonSpinner name="dots" style={{ color: W.green, width: 20, height: 20 }} />
-              : <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: W.greenText }}>₱{todaySales.toFixed(2)}</p>
-            }
-            <p style={{ margin: '3px 0 0', fontSize: 11, color: W.textMuted, fontWeight: 600 }}>Today's Sales</p>
-          </div>
-
-          <div style={{
-            borderRadius: 16, padding: '14px', textAlign: 'center',
-            backgroundColor: W.bluePale, border: '1px solid #B0CCE8',
-            boxShadow: '0 4px 20px rgba(44,74,112,0.08)',
-          }}>
-            <StatIconBox icon={cartOutline} color={W.blueText} bg="rgba(255,255,255,0.55)" />
-            {loadingStats
-              ? <IonSpinner name="dots" style={{ color: W.blueText, width: 20, height: 20 }} />
-              : <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: W.blueText }}>{todayCount}</p>
-            }
-            <p style={{ margin: '3px 0 0', fontSize: 11, color: W.textMuted, fontWeight: 600 }}>Transactions Today</p>
-          </div>
-        </div>
-
-        {/* ── Recent transactions ─────────────────────────── */}
-        <div style={card}>
-          <div style={{
-            padding: '10px 14px', borderBottom: `1px solid ${W.border}`,
-            backgroundColor: W.cardBgAlt,
+            borderRadius: 14, padding: '10px 14px', color: 'white', flexShrink: 0,
+            background: `linear-gradient(135deg, ${W.green}, ${W.greenLt})`,
+            boxShadow: '0 3px 16px rgba(45,106,31,0.22)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           }}>
-            <span style={{ fontWeight: 700, fontSize: 14, color: W.text }}>Recent Transactions</span>
+            <div>
+              <p style={{ margin: 0, fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.65)', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                Welcome back
+              </p>
+              <h2 style={{ margin: '1px 0 2px', fontSize: 16, fontWeight: 900, lineHeight: 1.2 }}>
+                {user?.name ?? '…'}
+              </h2>
+              <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.72)' }}>
+                {new Date().toLocaleDateString('en-PH', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+              </p>
+            </div>
             <button
-              onClick={() => history.push('/transactions')}
-              style={{ background: 'none', border: 'none', fontSize: 12, fontWeight: 700, color: W.green, cursor: 'pointer' }}
+              onClick={() => history.push('/pos')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                borderRadius: 10, padding: '7px 13px',
+                backgroundColor: W.cardBg, color: W.greenText,
+                border: 'none', fontWeight: 800, fontSize: 11, cursor: 'pointer',
+                flexShrink: 0,
+              }}
             >
-              View all →
+              New Sale →
             </button>
           </div>
 
-          {loadingRecent && (
-            <div style={{ padding: '32px 16px', display: 'flex', justifyContent: 'center' }}>
-              <IonSpinner name="crescent" style={{ color: W.green }} />
-            </div>
-          )}
+          {/* ── Stat cards ──────────────────────────────────────── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, flexShrink: 0 }}>
 
-          {!loadingRecent && errorRecent && (
-            <div style={{ padding: '20px 16px', textAlign: 'center' }}>
-              <p style={{ fontSize: 12, color: W.red, margin: 0 }}>{errorRecent}</p>
-              <button onClick={loadRecent} style={{
-                marginTop: 10, padding: '8px 16px', borderRadius: 10,
-                border: `1px solid ${W.border}`, backgroundColor: W.cardBgAlt,
-                color: W.textMuted, fontSize: 12, cursor: 'pointer',
+            <div style={{
+              borderRadius: 14, padding: '10px', textAlign: 'center',
+              backgroundColor: W.greenPale, border: '1px solid #B2D9A8',
+              boxShadow: '0 3px 14px rgba(45,106,31,0.09)',
+            }}>
+              <StatIconBox icon={cashOutline} color={W.greenText} bg="rgba(255,255,255,0.55)" />
+              {loadingStats ? (
+                <IonSpinner name="dots" style={{ color: W.green, width: 18, height: 18 }} />
+              ) : errorStats ? (
+                <p style={{ margin: 0, fontSize: 10, color: W.red }}>—</p>
+              ) : (
+                <p style={{ margin: 0, fontSize: 16, fontWeight: 900, color: W.greenText, lineHeight: 1 }}>
+                  ₱{stats.today_sales.toFixed(2)}
+                </p>
+              )}
+              <p style={{ margin: '3px 0 0', fontSize: 10, color: W.textMuted, fontWeight: 600 }}>Today's Sales</p>
+            </div>
+
+            <div style={{
+              borderRadius: 14, padding: '10px', textAlign: 'center',
+              backgroundColor: W.bluePale, border: '1px solid #B0CCE8',
+              boxShadow: '0 3px 14px rgba(44,74,112,0.07)',
+            }}>
+              <StatIconBox icon={cartOutline} color={W.blueText} bg="rgba(255,255,255,0.55)" />
+              {loadingStats ? (
+                <IonSpinner name="dots" style={{ color: W.blueText, width: 18, height: 18 }} />
+              ) : errorStats ? (
+                <p style={{ margin: 0, fontSize: 10, color: W.red }}>—</p>
+              ) : (
+                <p style={{ margin: 0, fontSize: 16, fontWeight: 900, color: W.blueText, lineHeight: 1 }}>
+                  {stats.today_transactions}
+                </p>
+              )}
+              <p style={{ margin: '3px 0 0', fontSize: 10, color: W.textMuted, fontWeight: 600 }}>Transactions Today</p>
+            </div>
+          </div>
+
+          {/* ── Stats error banner ──────────────────────────────── */}
+          {errorStats && (
+            <div style={{
+              padding: '8px 12px', borderRadius: 10, flexShrink: 0,
+              backgroundColor: W.redPale, border: `1px solid ${W.red}`,
+              fontSize: 11, color: W.red, display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <span style={{ flex: 1 }}>Stats error: {errorStats}</span>
+              <button onClick={loadStats} style={{
+                padding: '2px 8px', borderRadius: 7,
+                border: `1px solid ${W.red}`, backgroundColor: 'transparent',
+                color: W.red, fontSize: 10, cursor: 'pointer', flexShrink: 0,
               }}>Retry</button>
             </div>
           )}
 
-          {!loadingRecent && !errorRecent && recent.length === 0 && (
-            <div style={{ padding: '32px 16px', textAlign: 'center' }}>
-              <p style={{ fontSize: 13, color: W.textMuted }}>No transactions recorded yet.</p>
+          {/* ── Recent transactions — flex:1, fills all remaining space ── */}
+          <div style={{
+            ...card, flex: 1, display: 'flex', flexDirection: 'column',
+            overflow: 'hidden', marginBottom: 0,
+          }}>
+
+            {/* Fixed header */}
+            <div style={{
+              padding: '8px 12px', borderBottom: `1px solid ${W.border}`,
+              backgroundColor: W.cardBgAlt, flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <span style={{ fontWeight: 700, fontSize: 13, color: W.text }}>Recent Transactions</span>
+              <button
+                onClick={() => history.push('/transactions')}
+                style={{ background: 'none', border: 'none', fontSize: 11, fontWeight: 700, color: W.green, cursor: 'pointer' }}
+              >
+                View all →
+              </button>
             </div>
-          )}
 
-          {!loadingRecent && !errorRecent && recent.length > 0 && (
-            <div className="no-scrollbar" style={{ overflowY: 'auto', msOverflowStyle: 'none', scrollbarWidth: 'none', maxHeight: 400 } as React.CSSProperties}>
-
-              {/* Table header */}
-              <div style={{
-                display: 'grid', gridTemplateColumns: '2fr 2fr 1.2fr 1.4fr auto',
-                padding: '8px 14px', backgroundColor: W.green, gap: 8,
-              }}>
-                {['RECEIPT', 'BUYER', 'TOTAL', 'STATUS', ''].map((h, i) => (
-                  <span key={i} style={{
-                    fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.9)',
-                    letterSpacing: 0.5, textAlign: i >= 2 ? 'center' : 'left',
-                  }}>{h}</span>
-                ))}
+            {/* Loading */}
+            {loadingRecent && (
+              <div style={{ padding: '28px', display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+                <IonSpinner name="crescent" style={{ color: W.green }} />
               </div>
+            )}
 
-              {recent.map(txn => (
-                <div key={txn.id} style={{
-                  display: 'grid', gridTemplateColumns: '2fr 2fr 1.2fr 1.4fr auto',
-                  padding: '10px 14px', borderBottom: `1px solid ${W.border}`,
-                  backgroundColor: W.cardBg, alignItems: 'center', gap: 8,
+            {/* Error */}
+            {!loadingRecent && errorRecent && (
+              <div style={{ padding: '16px', textAlign: 'center', flexShrink: 0 }}>
+                <p style={{ fontSize: 11, color: W.red, margin: 0 }}>{errorRecent}</p>
+                <button onClick={loadRecent} style={{
+                  marginTop: 8, padding: '6px 14px', borderRadius: 8,
+                  border: `1px solid ${W.border}`, backgroundColor: W.cardBgAlt,
+                  color: W.textMuted, fontSize: 11, cursor: 'pointer',
+                }}>Retry</button>
+              </div>
+            )}
+
+            {/* Empty */}
+            {!loadingRecent && !errorRecent && recent.length === 0 && (
+              <div style={{ padding: '28px', textAlign: 'center', flexShrink: 0 }}>
+                <p style={{ fontSize: 12, color: W.textMuted }}>No transactions recorded yet.</p>
+              </div>
+            )}
+
+            {/* Table */}
+            {!loadingRecent && !errorRecent && recent.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+
+                {/* Column headers — fixed */}
+                <div style={{
+                  display: 'grid', gridTemplateColumns: '2fr 2fr 1.2fr 1.3fr auto',
+                  padding: '6px 12px', backgroundColor: W.green, gap: 6, flexShrink: 0,
                 }}>
-                  <div>
-                    <span style={{ fontFamily: 'monospace', fontSize: 10, fontWeight: 700, color: W.greenText }}>
-                      {txn.receipt_id}
-                    </span>
-                    <p style={{ margin: '2px 0 0', fontSize: 10, color: W.textMuted }}>
-                      {txn.created_at ? new Date(txn.created_at).toLocaleDateString('en-PH') : '—'}
-                    </p>
-                  </div>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: W.text }}>{txn.buyer}</span>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: W.text, textAlign: 'center' }}>
-                    ₱{txn.total_amount.toFixed(2)}
-                  </span>
-                  <div style={{ textAlign: 'center' }}>
-                    <StatusBadge status={txn.status} />
-                  </div>
-
-                  {/* ── Receipt icon button — matches NavIconBox style ── */}
-                  <button
-                    onClick={() => history.push(`/receipt/${txn.id}`)}
-                    style={{
-                      width: 34, height: 34, borderRadius: 10,
-                      backgroundColor: W.greenPale,
-                      border: '1px solid #B2D9A8',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer', flexShrink: 0,
-                    }}
-                  >
-                    <IonIcon icon={receiptOutline} style={{ fontSize: 18, color: W.greenText }} />
-                  </button>
+                  {['RECEIPT', 'BUYER', 'TOTAL', 'STATUS', ''].map((h, i) => (
+                    <span key={i} style={{
+                      fontSize: 9, fontWeight: 800, color: 'rgba(255,255,255,0.9)',
+                      letterSpacing: 0.6, textAlign: i >= 2 ? 'center' : 'left',
+                    }}>{h}</span>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+
+                {/* Scrollable rows */}
+                <div
+                  className="no-scrollbar"
+                  style={{ flex: 1, overflowY: 'auto', msOverflowStyle: 'none', scrollbarWidth: 'none' } as React.CSSProperties}
+                >
+                  {recent.map(txn => (
+                    <div key={txn.id} style={{
+                      display: 'grid', gridTemplateColumns: '2fr 2fr 1.2fr 1.3fr auto',
+                      padding: '8px 12px', borderBottom: `1px solid ${W.border}`,
+                      backgroundColor: W.cardBg, alignItems: 'center', gap: 6,
+                    }}>
+                      {/* Receipt + date */}
+                      <div>
+                        <span style={{ fontFamily: 'monospace', fontSize: 9, fontWeight: 700, color: W.greenText }}>
+                          {txn.receipt_id}
+                        </span>
+                        <p style={{ margin: '1px 0 0', fontSize: 9, color: W.textMuted }}>
+                          {txn.created_at ? new Date(txn.created_at).toLocaleDateString('en-PH') : '—'}
+                        </p>
+                      </div>
+                      {/* Buyer */}
+                      <span style={{ fontSize: 11, fontWeight: 600, color: W.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {txn.buyer}
+                      </span>
+                      {/* Amount */}
+                      <span style={{ fontSize: 12, fontWeight: 800, color: W.text, textAlign: 'center' }}>
+                        ₱{txn.total_amount.toFixed(2)}
+                      </span>
+                      {/* Status */}
+                      <div style={{ textAlign: 'center' }}>
+                        <StatusBadge status={txn.status} />
+                      </div>
+                      {/* Receipt button */}
+                      <button
+                        onClick={() => history.push(`/receipt/${txn.id}`)}
+                        style={{
+                          width: 28, height: 28, borderRadius: 8,
+                          backgroundColor: W.greenPale, border: '1px solid #B2D9A8',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          cursor: 'pointer', flexShrink: 0,
+                        }}
+                      >
+                        <IonIcon icon={receiptOutline} style={{ fontSize: 14, color: W.greenText }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+              </div>
+            )}
+          </div>
+
+        </div>{/* end full-height column */}
 
       </AppLayout>
     </>

@@ -1,2 +1,47 @@
 /* For information on how to create your own theme, please refer to:
 http://ionicframework.com/docs/theming/ */
+
+/* ── reCAPTCHA badge ──────────────────────────────────────────────────────── */
+.grecaptcha-badge {
+  visibility:     hidden  !important;
+  opacity:        0       !important;
+  pointer-events: none    !important;
+  display:        none    !important;
+  position:       fixed   !important;
+  bottom:         -200px  !important;
+  z-index:        -9999   !important;
+}
+
+/* ── Safe area ───────────────────────────────────────────────────────────────
+   CRITICAL: --ion-safe-area-bottom is forced to 0px.
+   Capacitor's edge-to-edge mode sets this to the system nav bar height
+   (e.g. 48px on OPPO A74), which causes IonTabBar to add extra padding
+   pushing icons up and leaving a gap below. We set it to 0 and handle
+   the background extension ourselves in AppLayout.tsx.                    */
+:root {
+  --ion-safe-area-top:    env(safe-area-inset-top,  0px);
+  --ion-safe-area-bottom: 0px;
+  --ion-safe-area-left:   env(safe-area-inset-left,  0px);
+  --ion-safe-area-right:  env(safe-area-inset-right, 0px);
+}
+
+/* ── Pin IonPage to the exact visible viewport ───────────────────────────── */
+ion-page {
+  position:       fixed   !important;
+  inset:          0       !important;
+  display:        flex    !important;
+  flex-direction: column  !important;
+  overflow:       hidden  !important;
+}
+
+/* ── IonContent fills all space above the tab bar ───────────────────────── */
+ion-content {
+  flex:       1   !important;
+  min-height: 0   !important;
+}
+
+/* ── Inner scroll container must be full-height ─────────────────────────── */
+ion-content::part(scroll) {
+  height:     100%       !important;
+  box-sizing: border-box !important;
+}

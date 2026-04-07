@@ -1,39 +1,41 @@
 // ============================================================
 // FILE: src/services/api.ts
 //
-// CHANGE FROM PREVIOUS VERSION:
-//   The 401 interceptor now checks whether a Sanctum token was
-//   actually present in localStorage BEFORE dispatching the
-//   'auth:unauthorized' event.
+// CHANGES FROM PREVIOUS VERSION:
+//   API_BASE now reads from VITE_API_BASE_URL instead of being
+//   hardcoded to http://127.0.0.1:8000/api.
 //
-// WHY THIS MATTERS:
-//   The old interceptor fired on ANY 401 response, including:
-//     - A /me call that raced before the token was written
-//     - A retry on a page that loaded before login completed
-//     - Any unauthenticated request made before login
+// HOW TO CONFIGURE — create these files in your Ionic root:
 //
-//   In those cases there is no token → the user is not
-//   "logged out", they were never logged in. Dispatching
-//   auth:unauthorized cleared the user state unnecessarily,
-//   which caused the symptom:
-//     "select member → no member found → redirected to login"
+//   .env.development        ← used by `ionic serve`
+//     VITE_API_BASE_URL=http://127.0.0.1:8000/api
 //
-//   The fix: only treat a 401 as "session expired" if a token
-//   was present. If there was no token, just reject the error
-//   normally and let the calling code handle it.
+//   .env.production         ← used by `ionic build --prod`
+//     VITE_API_BASE_URL=https://ocmpc.sousounofreiren.io/api
 //
-// UNCHANGED:
-//   - axios instance config (baseURL, headers, timeout)
-//   - Request interceptor (attaches Bearer token)
-//   - localStorage key names (must match AuthContext.tsx)
+// Vite automatically picks the right file based on the build
+// mode. Capacitor native builds (APK/IPA) always use production.
+//
+// TOKEN STORAGE KEYS (must match AuthContext.tsx):
+//   'sanctum_token' — the Sanctum Bearer token
+//   'auth_user'     — cached user object (JSON)
 // ============================================================
 
 import axios from 'axios';
 
-const API_BASE = 'https://ocmpc.sousounofreiren.io/api';
+// Vite only exposes variables prefixed with VITE_ to the client bundle.
+const API_BASE = import.meta.env.VITE_API_BASE_URL as string | undefined;
+
+if (!API_BASE) {
+  console.warn(
+    '[api.ts] VITE_API_BASE_URL is not set in your .env file.\n' +
+    'Add it to .env.development (local) and .env.production (deployed).\n' +
+    'Falling back to http://127.0.0.1:8000/api — local dev only.'
+  );
+}
 
 const api = axios.create({
-  baseURL: API_BASE,
+  baseURL: API_BASE ?? 'http://127.0.0.1:8000/api',
   headers: {
     'Content-Type': 'application/json',
     'Accept':       'application/json',
@@ -41,7 +43,7 @@ const api = axios.create({
   timeout: 15000,
 });
 
-// ── Request interceptor — attach Sanctum Bearer token ────────
+// ── Request interceptor — attach Sanctum Bearer token ─────────
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('sanctum_token');
@@ -50,32 +52,33 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
-// ── Response interceptor — signal 401 via event, not reload ──
+// ── Response interceptor — signal 401 via event, not reload ───
+//
+// Only treats a 401 as "session expired" if we had a stored token.
+// A 401 with no token means the request was intentionally
+// unauthenticated — we should NOT log the user out in that case.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Only treat this as "session expired" if we actually had
-      // a token. A 401 with no token means the request was
-      // intentionally unauthenticated — don't log the user out.
       const hadToken = Boolean(localStorage.getItem('sanctum_token'));
 
       if (hadToken) {
-        // Clear storage first so any retry won't send the dead token
+        // Clear storage first so retries don't re-send the dead token
         localStorage.removeItem('sanctum_token');
         localStorage.removeItem('auth_user');
 
-        // Dispatch event — AuthContext listens and calls setUser(null),
-        // which causes PrivateRoute to redirect without a page reload.
+        // AuthContext listens to this and calls setUser(null),
+        // causing PrivateRoute to redirect to /login without a reload.
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
       }
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

@@ -57,6 +57,9 @@ import '@ionic/react/css/text-transformation.css';
 import '@ionic/react/css/flex-utils.css';
 import '@ionic/react/css/display.css';
 
+/* App theme — includes reCAPTCHA badge suppression */
+import './theme/variables.css';
+
 setupIonicReact();
 
 // ── Private route guard ───────────────────────────────────────
@@ -79,9 +82,26 @@ function PrivateRoute({ component: Component, ...rest }: any) {
 
   return (
     <Route {...rest} render={() =>
-      user ? <Component /> : <Redirect to="/login" />
+      user
+        ? <Component />
+        // push={false} → uses history.replace under the hood,
+        // removing the protected route from the history stack so
+        // the back button cannot return to it after logout.
+        : <Redirect to="/login" push={false} />
     } />
   );
+}
+
+// ── bfcache guard ─────────────────────────────────────────────
+// When the user hits back after logout, the browser may restore a
+// frozen snapshot (bfcache) without re-running React. This listener
+// detects that case and forces a reload so PrivateRoute re-checks.
+if (typeof window !== 'undefined') {
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) {
+      window.location.reload();
+    }
+  });
 }
 
 // ── App ───────────────────────────────────────────────────────

@@ -313,7 +313,7 @@ function DeleteAccountSection({
 
       <button onClick={() => setModalOpen(true)} style={btnDanger}>
         <ExclamationTriangleIcon style={{ width: 16, height: 16 }} />
-        Request Deletion
+         Delete My Account
       </button>
 
       {/* Confirmation modal */}

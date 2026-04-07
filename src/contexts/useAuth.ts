@@ -3,27 +3,17 @@
 //
 // WHY THIS FILE EXISTS:
 //   Vite Fast Refresh requires a file to export ONLY React
-//   components OR only hooks/values — never both.
+//   components OR only hooks/values — not both.
 //
-//   The original AuthContext.tsx exported both AuthProvider
-//   (a component) and useAuth (a hook) from the same file.
-//   This caused Vite to print:
-//     "Could not Fast Refresh — useAuth export is incompatible"
-//   ...and fall back to a full page reload on every save.
+//   AuthContext.tsx exports AuthProvider (a component).
+//   This file exports useAuth (a hook). Keeping them separate
+//   prevents the "Could not Fast Refresh" warning and avoids
+//   the full-page reload that was triggering a /me race on
+//   every dev save.
 //
-//   That full reload re-ran the AuthContext boot useEffect,
-//   which fired a /me call that could race against localStorage
-//   writes and trigger a spurious 401 → logout loop.
-//
-// FIX:
-//   Move useAuth into this separate file. AuthContext.tsx now
-//   only exports AuthProvider (a component). Vite can Fast
-//   Refresh both files independently with no incompatibility.
-//
-// USAGE:
-//   Replace every import of useAuth from AuthContext.tsx with:
-//     import { useAuth } from '../contexts/useAuth';
-//   (adjust relative path as needed for each file)
+// NOTE: AuthContext.tsx must export both AuthContext and
+//   AuthContextType for this file to compile. Those exports
+//   were added in the fixed AuthContext.tsx.
 // ============================================================
 
 import { useContext } from 'react';

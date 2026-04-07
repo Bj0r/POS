@@ -1,32 +1,18 @@
 // ============================================================
 // FILE: src/pages/Login.tsx
 //
-// UPDATED TO MATCH Register.tsx layout:
-//   ✓ Same outer shell / card / header pattern as Register
-//   ✓ Uses W (warmEarth) theme tokens — consistent with Register
-//   ✓ Uses Heroicons (not IonIcon) for field icons — matches Register
-//   ✓ "Create account" link at the bottom — mirrors Register's "Sign in"
-//   ✓ All existing Login features preserved:
-//       - Lockout after MAX_ATTEMPTS (3) failures — 60s countdown
-//       - Progress bar during lockout
-//       - "N attempts remaining" amber warning
-//       - Inline forgot-password + forgot-sent views
-//       - Forgot password calls POST /api/forgot-password
-//       - Pending approval (403) → redirect /pending
-//       - Enter key submits the active form
-//       - Mount + view-switch transitions
+// LAYOUT: Matches Login.jsx (Inertia/web) layout exactly:
+//   ✓ Slide-in mount transition (translateX, matching JSX)
+//   ✓ Plain text header (h2 + subtitle) — no icon box
+//   ✓ Card gets the view-switch fade+slide transition
+//   ✓ Lockout banner, attempts warning, approval reminder
+//   ✓ Forgot password + forgot-sent views preserved
+//   ✓ Remember me checkbox
+//   ✓ Staff POS redirect banner REMOVED
+//   ✓ "Create account" link REMOVED
 //
-// RESET PASSWORD — HOW IT WORKS IN HYBRID (Ionic + Laravel):
-//   POST /api/forgot-password delegates to Laravel's built-in
-//   Password::sendResetLink().  The email contains a link to
-//   your web app (APP_URL/reset-password/{token}).  The user
-//   taps the link, their phone browser opens the web app, they
-//   reset the password there, then return to the Ionic app and
-//   log in normally.  No special Ionic handling is required.
-//   This is confirmed working as long as:
-//     1. APP_URL in .env points to your web domain
-//     2. routes/auth.php has the reset-password routes (it does)
-//     3. Mail is configured (MAIL_* in .env)
+// AUTH: POST /api/login via useAuth().login()
+// RESET PASSWORD: POST /api/forgot-password
 // ============================================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -38,7 +24,6 @@ import {
   EyeSlashIcon,
   ArrowLeftIcon,
   CheckCircleIcon,
-  ArrowRightStartOnRectangleIcon,
 } from '@heroicons/react/24/outline';
 import { useHistory, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
@@ -200,32 +185,44 @@ export default function Login() {
           alignItems:     'center',
           justifyContent: 'center',
           padding:        '24px 20px',
-          opacity:        mounted ? 1 : 0,
-          transition:     'opacity 0.35s ease',
         }}>
           <div style={{
-            width:    '100%',
-            maxWidth: 440,
-            opacity:  viewMounted ? 1 : 0,
-            transform: viewMounted ? 'translateY(0)' : 'translateY(8px)',
-            transition: 'opacity 0.18s ease, transform 0.18s ease',
+            width:      '100%',
+            maxWidth:   440,
+            opacity:    mounted ? 1 : 0,
+            transform:  mounted ? 'translateX(0)' : 'translateX(24px)',
+            transition: 'opacity 0.5s ease, transform 0.5s ease',
           }}>
 
-            {/* ── Header (icon + title) — mirrors Register ───────── */}
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            {/* ── Header ───────────────────────────────────────────── */}
+            <div style={{ marginBottom: 28, textAlign: 'center' }}>
+
+              {/* COOP logo */}
               <div style={{
-                width: 64, height: 64, borderRadius: 20,
-                background: `linear-gradient(135deg, ${W.greenLt}, ${W.green})`,
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                width: 72, height: 72, borderRadius: '50%',
+                overflow: 'hidden', flexShrink: 0,
+                border: `3px solid ${W.green}`,
+                outline: `3px solid ${W.greenPale ?? '#D6EDD0'}`,
+                outlineOffset: 2,
+                boxShadow: '0 8px 32px rgba(45,106,31,0.30)',
                 marginBottom: 14,
-                boxShadow: '0 8px 24px rgba(45,106,31,0.28)',
+                margin: '0 auto 14px',
               }}>
-                <ArrowRightStartOnRectangleIcon style={{ width: 28, height: 28, color: '#fff' }} />
+                <picture>
+                  <source srcSet="/assets/COOP.webp" type="image/webp" />
+                  <img
+                    src="/assets/COOP.png"
+                    alt="OCMPC Logo"
+                    width={72}
+                    height={72}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                </picture>
               </div>
 
               {view === 'login' && (
                 <>
-                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: W.text }}>
+                  <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: W.text, letterSpacing: -0.5 }}>
                     Welcome back
                   </h2>
                   <p style={{ margin: '4px 0 0', fontSize: 13, color: W.textMuted }}>
@@ -235,7 +232,7 @@ export default function Login() {
               )}
               {view === 'forgot' && (
                 <>
-                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: W.text }}>
+                  <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: W.text, letterSpacing: -0.5 }}>
                     Forgot password?
                   </h2>
                   <p style={{ margin: '4px 0 0', fontSize: 13, color: W.textMuted }}>
@@ -246,10 +243,10 @@ export default function Login() {
               {view === 'forgot-sent' && (
                 <>
                   <CheckCircleIcon style={{
-                    width: 48, height: 48, color: W.green,
-                    display: 'block', margin: '0 auto 10px',
+                    width: 40, height: 40, color: W.green,
+                    display: 'block', marginBottom: 10,
                   }} />
-                  <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: W.text }}>
+                  <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: W.text, letterSpacing: -0.5 }}>
                     Check your email
                   </h2>
                   <p style={{ margin: '4px 0 0', fontSize: 13, color: W.textMuted }}>
@@ -259,13 +256,16 @@ export default function Login() {
               )}
             </div>
 
-            {/* ── Card — mirrors Register ─────────────────────────── */}
+            {/* ── Card ────────────────────────────────────────────── */}
             <div style={{
               backgroundColor: W.cardBg,
               borderRadius:    20,
               border:          `1px solid ${W.border}`,
               boxShadow:       '0 4px 24px rgba(28,43,26,0.10)',
               padding:         '24px 20px',
+              opacity:         viewMounted ? 1 : 0,
+              transform:       viewMounted ? 'translateY(0)' : 'translateY(8px)',
+              transition:      'opacity 0.18s ease, transform 0.18s ease',
             }}>
 
               {/* ════════════════════════════════════════════════════ */}
@@ -573,13 +573,10 @@ export default function Login() {
 
             </div>
 
-            {/* ── Create account link — mirrors Register's "Sign in" link ── */}
+            {/* ── Register link ─────────────────────────────────── */}
             <p style={{ marginTop: 20, textAlign: 'center', fontSize: 13, color: W.textMuted }}>
               Don't have an account?{' '}
-              <Link
-                to="/register"
-                style={{ fontWeight: 700, color: W.green, textDecoration: 'none' }}
-              >
+              <Link to="/register" style={{ fontWeight: 700, color: W.green, textDecoration: 'none' }}>
                 Create account
               </Link>
             </p>
